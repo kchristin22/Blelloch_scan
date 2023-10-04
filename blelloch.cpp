@@ -6,21 +6,9 @@
 #include <chrono>
 #include <vector>
 
-#define SIZE 10
+#define SIZE 100000
 
 void fnSum(uint16_t* array, size_t start, size_t end){
-
-    // std::atomic<uint16_t*> atomicArray[2]; // check notation
-    // atomicArray[0] = &array[start];
-    // atomicArray[1] = &array[end];
-    
-    // uint16_t* currentPtr = atomicArray[0].load(std::memory_order_acquire);
-    // uint16_t* nextPtr = atomicArray[1].load(std::memory_order_acquire);
-    // uint16_t* sum = new uint16_t(*currentPtr + *nextPtr);
-    // atomicArray[1].store(sum, std::memory_order_release);
-    // array[end] = *atomicArray[1];
-    // delete sum;
-
     array[end] += array[start];
 }
 
@@ -31,12 +19,18 @@ void reduce(uint16_t* array, size_t size){
     uint8_t nthreads = std::thread::hardware_concurrency();
     std::vector<std::thread> threadObj;
     threadObj.reserve(nthreads);
-    for(size_t k=0; k<(size_t)log2(size); k++){
-        size_t threadsToCreate = size / ((size_t)pow(2, k + 1));
-        size_t chunks = 1;
-        size_t chunkSize=size;
+    size_t threadsToCreate, chunks = 1, chunkSize = size;
+
+    for(size_t k=0; k< (size_t)log2(size); k++){
+        threadsToCreate = size / ((size_t)pow(2, k + 1));
+
         if(threadsToCreate >= nthreads){
-            chunks = threadsToCreate / nthreads + 1;
+            if (threadsToCreate % nthreads == 0){
+                chunks = threadsToCreate / nthreads;
+            }
+            else{
+                chunks = threadsToCreate / nthreads + 1;
+            }
             chunkSize = size/chunks;
         }
         for (size_t threadGroup=0; threadGroup < chunks; threadGroup++){
@@ -59,9 +53,45 @@ void reduce(uint16_t* array, size_t size){
     }
 }
 
+void downSweep(uint16_t* array, size_t size){
+    array[size-1] = 0;
+    uint8_t nthreads = std::thread::hardware_concurrency();
+    std::vector<std::thread> threadObj;
+    threadObj.reserve(nthreads);
+    size_t threadsToCreate, chunks, chunkSize;
+
+    for (size_t k = 0; k < (size_t)log2(size); k++){
+        threadsToCreate = size / ((size_t)pow(2, k + 1));
+        chunks = 1;
+        chunkSize = size;
+
+        if(threadsToCreate >= nthreads){
+            if (threadsToCreate % nthreads == 0){
+                chunks = threadsToCreate / nthreads;
+            }
+            else{
+                chunks = threadsToCreate / nthreads + 1;
+            }
+            chunkSize = size/chunks;
+        }
+
+        for (size_t chunk = 0; chunk < chunks; chunk++){
+            
+        }
+    }
+}
+
+// a[n − 1] ← 0 % Set the identity
+// for d from (lg n) − 1 downto 0
+// in parallel for i from 0 to n − 1 by 2d+1
+// t ← a[i + 2d − 1] % Save in temporary
+// a[i + 2d − 1] ← a[i + 2d+1 − 1] % Set left child
+// a[i + 2d+1 − 1] ← t + a[i + 2d+1 − 1] % Set right child
+
+
 void blellochScan(uint16_t* array, size_t size){
     reduce(array, size);
-    //upSweep(array, size);
+    // downSweep(array, size);
 }
 
 
