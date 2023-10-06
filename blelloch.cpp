@@ -6,10 +6,16 @@
 #include <chrono>
 #include <vector>
 
-#define SIZE 100000
+#define SIZE 8
 
 void fnSum(uint16_t* array, size_t start, size_t end){
     array[end] += array[start];
+}
+
+void fnSwap(uint16_t* array, size_t left, size_t right){
+    uint16_t temp = array[left];
+    array[left] = array[right];
+    array[right] += temp;
 }
 
 // for(size_t k=2; k<=pow(2,log2(end-start)); k*=2){
@@ -21,7 +27,7 @@ void reduce(uint16_t* array, size_t size){
     threadObj.reserve(nthreads);
     size_t threadsToCreate, chunks = 1, chunkSize = size;
 
-    for(size_t k=0; k< (size_t)log2(size); k++){
+    for(size_t k=0; k < (size_t)log2(size); k++){
         threadsToCreate = size / ((size_t)pow(2, k + 1));
 
         if(threadsToCreate >= nthreads){
@@ -34,11 +40,8 @@ void reduce(uint16_t* array, size_t size){
             chunkSize = size/chunks;
         }
         for (size_t threadGroup=0; threadGroup < chunks; threadGroup++){
-            // printf("k: %ld\n",k);
             for (size_t i = ((1 << k) -1 + threadGroup*chunkSize); i < (size - (1 << k) + 1 - (chunkSize*(chunks-threadGroup-1))); i+= (1 << (k+1)))
             {
-                // printf("max: %ld ", (size - (1 << k) + 1 - (chunkSize*(chunks-threadGroup-1))));
-                // printf("start: %ld, end: %ld \n", i, (i + (1 << k)));
                 threadObj.emplace_back(std::thread(fnSum, array,i,(i + (1 << k))));
             }
             for (std::thread& t : threadObj) {
@@ -48,8 +51,6 @@ void reduce(uint16_t* array, size_t size){
             }
             
         }
-        
-        
     }
 }
 
@@ -60,7 +61,7 @@ void downSweep(uint16_t* array, size_t size){
     threadObj.reserve(nthreads);
     size_t threadsToCreate, chunks, chunkSize;
 
-    for (size_t k = 0; k < (size_t)log2(size); k++){
+    for (int k = ((int)log2(size) - 1); k >= 0; k--){
         threadsToCreate = size / ((size_t)pow(2, k + 1));
         chunks = 1;
         chunkSize = size;
@@ -76,22 +77,23 @@ void downSweep(uint16_t* array, size_t size){
         }
 
         for (size_t chunk = 0; chunk < chunks; chunk++){
-            
+            for (size_t i= ((1 << k) -1 + chunk*chunkSize); i <= (size - (1 << k) - (chunkSize*(chunks-chunk-1))); i+= (1 << (k+1))){ // subtracting (chunkSize*(chunks-chunk-1)) to account for the chunk's limit
+                threadObj.emplace_back(std::thread(fnSwap, array, i, (i + (1 << k))));
+            }
+
+            for (std::thread& t : threadObj) {
+                if (t.joinable()) {
+                    t.join();
+                }
+            }
         }
     }
 }
 
-// a[n − 1] ← 0 % Set the identity
-// for d from (lg n) − 1 downto 0
-// in parallel for i from 0 to n − 1 by 2d+1
-// t ← a[i + 2d − 1] % Save in temporary
-// a[i + 2d − 1] ← a[i + 2d+1 − 1] % Set left child
-// a[i + 2d+1 − 1] ← t + a[i + 2d+1 − 1] % Set right child
-
 
 void blellochScan(uint16_t* array, size_t size){
     reduce(array, size);
-    // downSweep(array, size);
+    downSweep(array, size);
 }
 
 
@@ -101,7 +103,7 @@ int main(){
 
     uint16_t* array = (uint16_t*)malloc(SIZE*sizeof(uint16_t));
 
-    srand(time(NULL));
+    // srand(time(NULL));
 
     printf("The array in question is: ");
     for (size_t i=0; i<SIZE; i++){
