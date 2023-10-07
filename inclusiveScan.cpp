@@ -12,10 +12,43 @@ void fnSum(uint16_t* array, size_t start, size_t end){
     array[end] += array[start];
 }
 
-void fnSwap(uint16_t* array, size_t left, size_t right){
-    uint16_t temp = array[left];
-    array[left] = array[right];
-    array[right] += temp;
+void fnTree(uint16_t* array, size_t start){
+
+    uint8_t nthreads = std::thread::hardware_concurrency();
+    std::vector<std::thread> threadObj;
+    threadObj.reserve(nthreads);
+    size_t threadsToCreate, chunks = 1, chunkSize = start;
+    size_t current_pos, previous_pos;
+
+    for(size_t l= 1; l < ((size_t)log2(start) + 1); l++){
+        threadsToCreate = (size_t)pow(2, l - 1);
+
+        if(threadsToCreate >= nthreads){
+            if (threadsToCreate % nthreads == 0){
+                chunks = threadsToCreate / nthreads;
+            }
+            else{
+                chunks = threadsToCreate / nthreads + 1;
+            }
+            chunkSize = start/chunks;
+        }
+        for (size_t chunk=0; chunk < chunks; chunk++){
+            for (size_t k = 1 + chunk*chunkSize; k < ((1 << l) - (chunkSize*(chunks-chunk-1))); k+=2)
+            {
+                current_pos = start - 1 + k * (1 << ((size_t)log2(start) - l));
+                previous_pos = start - 1 + (k - 1) * (1 << ((size_t)log2(start) - l));
+                threadObj.emplace_back(std::thread(fnSum, array,previous_pos,current_pos));
+            }
+            for (std::thread& t : threadObj) {
+                if (t.joinable()) {
+                    t.join();
+                }
+            }
+            
+        }
+
+        
+    }
 }
 
 
@@ -54,46 +87,27 @@ void reduce(uint16_t* array, size_t size){
     }
 }
 
-void downSweep(uint16_t* array, size_t size){
-    array[(1 << (int)log2(size)) - 1] = 0;
+void increase(uint16_t* array, size_t size){
     uint8_t nthreads = std::thread::hardware_concurrency();
     std::vector<std::thread> threadObj;
     threadObj.reserve(nthreads);
-    size_t threadsToCreate, chunks, chunkSize;
 
-    for (int k = ((int)log2(size) - 1); k >= 0; k--){
-        threadsToCreate = size / ((size_t)pow(2, k + 1));
-        chunks = 1;
-        chunkSize = size;
+    for (size_t i = 1; i < (size_t)log2(size); i++){
+        threadObj.emplace_back(std::thread(fnTree, array, (1 << i)));
+    }
 
-        if(threadsToCreate >= nthreads){
-            if (threadsToCreate % nthreads == 0){
-                chunks = threadsToCreate / nthreads;
-            }
-            else{
-                chunks = threadsToCreate / nthreads + 1;
-            }
-            chunkSize = size/chunks;
-        }
-
-        for (size_t chunk = 0; chunk < chunks; chunk++){
-            for (size_t i= ((1 << k) -1 + chunk*chunkSize); i <= (size - (1 << k) - (chunkSize*(chunks-chunk-1))); i+= (1 << (k+1))){ // subtracting (chunkSize*(chunks-chunk-1)) to account for the chunk's limit
-                threadObj.emplace_back(std::thread(fnSwap, array, i, (i + (1 << k))));
-            }
-
-            for (std::thread& t : threadObj) {
-                if (t.joinable()) {
-                    t.join();
-                }
-            }
+    for (std::thread& t : threadObj) {
+        if (t.joinable()) {
+            t.join();
         }
     }
+ 
 }
 
 
-void blellochScan(uint16_t* array, size_t size){
+void scan(uint16_t* array, size_t size){
     reduce(array, size);
-    downSweep(array, size);
+    increase(array, size);
 }
 
 
@@ -112,7 +126,7 @@ int main(){
     }
     printf("\n");
     auto start = std::chrono::steady_clock::now();
-    blellochScan(array, SIZE);
+    scan(array, SIZE);
     auto end = std::chrono::steady_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
     printf("Time elapsed: %ld\n", duration.count());
@@ -126,4 +140,3 @@ int main(){
     free(array);
     return 0;
 }
-
