@@ -126,7 +126,7 @@ void increase(uint16_t *array, size_t size)
 
     for (size_t i = 1; i < limit; i++)
     { // divide the array to ranges of [2^i, 2^(i+1))
-        threadObj.emplace_back(std::thread(fnTree, array, (1 << i)));
+        threadObj.emplace_back(std::thread(fnTree, array, size, (1 << i)));
     }
 
     for (std::thread &t : threadObj)
