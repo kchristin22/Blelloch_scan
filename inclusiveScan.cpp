@@ -5,6 +5,11 @@
 #include <thread>
 #include <chrono>
 #include <vector>
+#include <fstream>
+
+#define ANKERL_NANOBENCH_IMPLEMENT
+#include "nanobench.h"
+
 
 #define SIZE 8
 
@@ -12,13 +17,14 @@ void fnSum(uint16_t* array, size_t start, size_t end){
     array[end] += array[start];
 }
 
-void fnTree(uint16_t* array, size_t start){
+void fnTree(uint16_t* array, size_t size, size_t start){
 
     uint8_t nthreads = std::thread::hardware_concurrency();
     std::vector<std::thread> threadObj;
     threadObj.reserve(nthreads);
     size_t threadsToCreate, chunks = 1, chunkSize = start;
-    size_t current_pos, previous_pos;
+    size_t current_pos, previous_pos, limit;
+
 
     for(size_t l= 1; l < ((size_t)log2(start) + 1); l++){
         threadsToCreate = (size_t)pow(2, l - 1);
@@ -93,7 +99,7 @@ void increase(uint16_t* array, size_t size){
     threadObj.reserve(nthreads);
 
     for (size_t i = 1; i < (size_t)log2(size); i++){
-        threadObj.emplace_back(std::thread(fnTree, array, (1 << i)));
+        threadObj.emplace_back(std::thread(fnTree, array, size, (1 << i)));
     }
 
     for (std::thread& t : threadObj) {
@@ -119,23 +125,36 @@ int main(){
 
     // srand(time(NULL));
 
-    printf("The array in question is: ");
+    // printf("The array in question is: ");
     for (size_t i=0; i<SIZE; i++){
         array[i] = rand() % 100;
-        printf("%d ", array[i]);
+        // printf("%d ", array[i]);
     }
-    printf("\n");
-    auto start = std::chrono::steady_clock::now();
-    scan(array, SIZE);
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    printf("Time elapsed: %ld\n", duration.count());
+    // printf("\n");
+    // auto start = std::chrono::steady_clock::now();
+    // scan(array, SIZE);
+    // auto end = std::chrono::steady_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    // printf("Time elapsed: %ld\n", duration.count());
 
-    printf("Final:");
-    for (size_t i=0; i<SIZE; i++){
-        printf(" %d", array[i]);
-    }
-    printf("\n");
+    // printf("Final:");
+    // for (size_t i=0; i<SIZE; i++){
+    //     printf(" %d", array[i]);
+    // }
+    // printf("\n");
+
+    std::fstream file("output_inclusive.json", std::ios::out);
+
+    ankerl::nanobench::Bench()
+    .minEpochIterations(100)
+    .epochs(30) 
+    .run("scan", [&] {
+        scan(array, SIZE);
+    })
+    .render(
+        ankerl::nanobench::templates::pyperf(),
+        file
+    );
 
     free(array);
     return 0;

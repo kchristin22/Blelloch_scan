@@ -5,6 +5,10 @@
 #include <thread>
 #include <chrono>
 #include <vector>
+#include <fstream>
+
+#define ANKERL_NANOBENCH_IMPLEMENT
+#include "nanobench.h"
 
 #define SIZE 8
 
@@ -188,23 +192,36 @@ int main(){
 
     // srand(time(NULL));
 
-    printf("The array in question is: ");
+    // printf("The array in question is: ");
     for (size_t i=0; i<SIZE; i++){
         array[i] = rand() % 100;
-        printf("%d ", array[i]);
+        // printf("%d ", array[i]);
     }
-    printf("\n");
-    auto start = std::chrono::steady_clock::now();
-    blellochScan(array, SIZE);
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-    printf("Time elapsed: %ld\n", duration.count());
+    // printf("\n");
+    // auto start = std::chrono::steady_clock::now();
+    // blellochScan(array, SIZE);
+    // auto end = std::chrono::steady_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    // printf("Time elapsed: %ld\n", duration.count());
 
-    printf("Final:");
-    for (size_t i=0; i<SIZE; i++){
-        printf(" %d", array[i]);
-    }
-    printf("\n");
+    // printf("Final:");
+    // for (size_t i=0; i<SIZE; i++){
+    //     printf(" %d", array[i]);
+    // }
+    // printf("\n");
+
+    std::fstream file("output_blelloch.json", std::ios::out);
+
+    ankerl::nanobench::Bench()
+    .minEpochIterations(100)
+    .epochs(30) 
+    .run("blelloch", [&] {
+        blellochScan(array, SIZE);
+    })
+    .render(
+        ankerl::nanobench::templates::pyperf(),
+        file
+    );
 
     free(array);
     return 0;
