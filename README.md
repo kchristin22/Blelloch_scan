@@ -5,3 +5,5 @@ To run the benchmarks of the two inclusive scan implementations, you need to hav
 `pyperf compare_to output_inclusive.json output_blelloch.json --table`
 
 A table will appear with a comparison of the execution times.
+
+The source code for the benchmarks can be found in the [`nanobench`](https://github.com/martinus/nanobench) repository.
