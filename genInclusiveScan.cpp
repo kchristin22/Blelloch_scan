@@ -79,7 +79,7 @@ void reduce(uint16_t *array, size_t size)
 {
     uint8_t nthreads = std::thread::hardware_concurrency();
     std::vector<std::thread> threadObj;
-    threadObj.reserve(nthreads);
+    threadObj.reserve(nthreads); // reserve space for the threads equal to the no. of hw threads
     size_t threadsToCreate, chunks = 1, chunkSize = size;
 
     for (size_t k = 0; k < (size_t)log2(size); k++)
@@ -87,25 +87,24 @@ void reduce(uint16_t *array, size_t size)
         threadsToCreate = size / ((size_t)pow(2, k + 1));
 
         if (threadsToCreate >= nthreads)
-        {
-            if (threadsToCreate % nthreads == 0)
-            {
-                chunks = threadsToCreate / nthreads;
-            }
-            else
-            {
-                chunks = threadsToCreate / nthreads + 1;
+        { // check if the number of threads needed surpasses the allocated no. of threads
+            size_t chunks = threadsToCreate / nthreads;
+            if ((threadsToCreate - (chunks * nthreads)) != 0)
+            {                // check if the number of threads needed is not a multiple of the no. of hw threads
+                chunks += 1; // add an extra chunk to account for the remaining threads
             }
             chunkSize = size / chunks;
         }
         for (size_t threadGroup = 0; threadGroup < chunks; threadGroup++)
         {
             for (size_t i = ((1 << k) - 1 + threadGroup * chunkSize); i < (size - (1 << k) + 1 - (chunkSize * (chunks - threadGroup - 1))); i += (1 << (k + 1)))
+            // subtracting (chunkSize*(chunks-threadGroup-1)) to account for the chunk's limit at each iteration
+            // subtracting ((1 << k) - 1) to check if the end index is not out of bounds
             {
                 threadObj.emplace_back(std::thread(fnSum, array, i, (i + (1 << k))));
             }
             for (std::thread &t : threadObj)
-            {
+            { // join the parent thread before switching to the next chunk or to next level of the tree
                 if (t.joinable())
                 {
                     t.join();
@@ -123,15 +122,15 @@ void increase(uint16_t *array, size_t size)
 
     size_t log2size = (size_t)log2(size);
 
-    size_t limit = (size - (1 << log2size)) > 0 ? log2size + 1 : log2size;
+    size_t limit = (size - (1 << log2size)) > 0 ? log2size + 1 : log2size; // check if the size of the array is not a power of 2
 
     for (size_t i = 1; i < limit; i++)
-    {
-        threadObj.emplace_back(std::thread(fnTree, array, size, (1 << i)));
+    { // divide the array to ranges of [2^i, 2^(i+1))
+        threadObj.emplace_back(std::thread(fnTree, array, (1 << i)));
     }
 
     for (std::thread &t : threadObj)
-    {
+    { // join the parent thread before exiting
         if (t.joinable())
         {
             t.join();
@@ -141,8 +140,8 @@ void increase(uint16_t *array, size_t size)
 
 void scan(uint16_t *array, size_t size)
 {
-    reduce(array, size);
-    increase(array, size);
+    reduce(array, size);   // first stage of the algorithm, same with blelloch's
+    increase(array, size); // second stage of the algorithm
 }
 
 // check for overflows
