@@ -6,22 +6,37 @@
 #include <chrono>
 #include <vector>
 
-#define SIZE 8
+#define SIZE 14
 
 void fnSum(uint16_t *array, size_t start, size_t end)
 {
     array[end] += array[start];
 }
 
-void fnTree(uint16_t *array, size_t start)
+void fnTree(uint16_t *array, size_t size, size_t start)
 {
 
     uint8_t nthreads = std::thread::hardware_concurrency();
     std::vector<std::thread> threadObj;
     threadObj.reserve(nthreads);
     size_t threadsToCreate, chunks = 1, chunkSize = start; // the length of the array range we're dealing with here is equal to start(2^i)
-    size_t current_pos, previous_pos;                      // previous_pos is the position of the nearest item from the left
+    size_t current_pos, previous_pos, end;                 // previous_pos is the position of the nearest item from the left
                                                            // that includes the sum of all its previous items and itself
+
+    size_t pow2size = 1 << (size_t)log2(size);
+
+    if (size % 2 != 0)
+    {           // check if the size of the array is an odd number
+        size--; // perform the second stage for the range [0, size - 1]
+    }
+
+    if (size - pow2size > 0 && start == pow2size && (size - start) % 2 != 0)
+    {                   // size != 2^k, we're in the last range of the array
+                        // and the first index of the iteration is not odd
+        end = 2 + size; // add 2 to the end index so the first index of the iteration is not odd
+    }
+    else
+        end = 2 * start;
 
     for (size_t l = 1; l < ((size_t)log2(start) + 1); l++)
     {
@@ -40,8 +55,8 @@ void fnTree(uint16_t *array, size_t start)
         {
             for (size_t k = 1 + chunk * chunkSize; k < ((1 << l) - (chunkSize * (chunks - chunk - 1))); k += 2) // check report for an explanation on the limit of k
             {
-                current_pos = start - 1 + k * (1 << ((size_t)log2(start) - l)); // check report for an explanation on the formula
-                previous_pos = start - 1 + (k - 1) * (1 << ((size_t)log2(start) - l));
+                current_pos = start - 1 + k * (end - start) / (1 << l); // check report for an explanation on the formula
+                previous_pos = start - 1 + (k - 1) * (end - start) / (1 << l);
                 threadObj.emplace_back(std::thread(fnSum, array, previous_pos, current_pos));
             }
             for (std::thread &t : threadObj)
@@ -52,6 +67,11 @@ void fnTree(uint16_t *array, size_t start)
                 }
             }
         }
+    }
+
+    if (size % 2 != 0)
+    {
+        array[size - 1] += array[size - 2];
     }
 }
 
