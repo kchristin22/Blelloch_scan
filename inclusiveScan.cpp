@@ -104,8 +104,8 @@ void increase(uint16_t *array, size_t size)
     std::vector<std::thread> threadObj;
     threadObj.reserve(nthreads);
 
-    for (size_t i = 1; i < (size_t)log2(size); i++)
-    { // divide the array to ranges of [2^i, 2^(i+1))
+    for (size_t i = 1; i < (size_t)log2(size); i++) // start from 1 as the first element is already scanned
+    {                                               // divide the array to ranges of [2^i, 2^(i+1))
         threadObj.emplace_back(std::thread(fnTree, array, (1 << i)));
     }
 

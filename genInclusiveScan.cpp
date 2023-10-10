@@ -27,16 +27,16 @@ void fnTree(uint16_t *array, size_t size, size_t start)
 
     if (size % 2 != 0)
     {           // check if the size of the array is an odd number
-        size--; // perform the second stage for the range [0, size - 1]
+        size--; // perform the second stage for the range [1, size - 1]
     }
 
     if (size - pow2size > 0 && start == pow2size && (size - start) % 2 != 0)
     {                   // size != 2^k, we're in the last range of the array
                         // and the first index of the iteration is not odd
-        end = 2 + size; // add 2 to the end index so the first index of the iteration is not odd
+        end = 2 + size; // add 2 to the end index so the first index of the iteration will end up to the spot (size - start) / 2 + 1
     }
     else
-        end = 2 * start;
+        end = 2 * start; // end = 2^(i+1)
 
     for (size_t l = 1; l < ((size_t)log2(start) + 1); l++)
     {
@@ -124,8 +124,8 @@ void increase(uint16_t *array, size_t size)
 
     size_t limit = (size - (1 << log2size)) > 0 ? log2size + 1 : log2size; // check if the size of the array is not a power of 2
 
-    for (size_t i = 1; i < limit; i++)
-    { // divide the array to ranges of [2^i, 2^(i+1))
+    for (size_t i = 1; i < limit; i++) // start from 1 as the first element is already scanned
+    {                                  // divide the array to ranges of [2^i, 2^(i+1))
         threadObj.emplace_back(std::thread(fnTree, array, size, (1 << i)));
     }
 
